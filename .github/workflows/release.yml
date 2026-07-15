@@ -41,7 +41,7 @@ jobs:
           MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
         run: |
           Set-Content -Path minisign.key -Value $env:MINISIGN_SECRET_KEY
-          .\minisign.exe -S -s minisign.key -m target\release\spotflamer.exe
+          echo "" | .\minisign.exe -S -s minisign.key -m target\release\spotflamer.exe
           Remove-Item minisign.key
 
       - name: Prepare Release Artifacts
