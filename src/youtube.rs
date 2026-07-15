@@ -114,7 +114,7 @@ pub async fn search_and_download(
         debug!("yt-dlp search: {search_arg}");
 
         let output = hidden_command(&exe)
-            .args(["--dump-json", "--flat-playlist", "--no-warnings", &search_arg])
+            .args(["--dump-json", "--flat-playlist", "--no-warnings", "--extractor-args", "youtube:player_client=default,ios", &search_arg])
             .output()
             .await
             .map_err(|e| format!("Impossible de lancer yt-dlp ({}): {e}", exe.display()))?;
@@ -188,7 +188,7 @@ pub async fn download_direct(
     let exe = get_ytdlp_path();
 
     let output = hidden_command(&exe)
-        .args(["--dump-json", "--no-warnings", video_url])
+        .args(["--dump-json", "--no-warnings", "--extractor-args", "youtube:player_client=default,ios", video_url])
         .output()
         .await
         .map_err(|e| format!("Impossible de lancer yt-dlp: {e}"))?;
@@ -262,6 +262,7 @@ async fn download_audio(exe: &Path, video_url: &str, output_dir: &Path, video_id
             "-f", "bestaudio",
             "--no-playlist",
             "--no-warnings",
+            "--extractor-args", "youtube:player_client=default,ios",
             "-o", &output_template.to_string_lossy(),
             video_url,
         ])
