@@ -10,6 +10,12 @@ use tracing::{error, info};
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone)]
+pub enum ItemPayload {
+    Spotify(crate::spotify::TrackInfo),
+    YouTube(String),
+}
+
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct QueueItem {
     pub id: u64,
@@ -17,6 +23,7 @@ pub struct QueueItem {
     pub artist: String,
     pub album: String,
     pub status: DownloadStatus,
+    pub payload: Option<ItemPayload>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -49,6 +56,7 @@ pub struct ItemMeta {
     pub title: String,
     pub artist: String,
     pub album: String,
+    pub payload: Option<ItemPayload>,
 }
 
 #[derive(Debug, Clone)]
@@ -61,6 +69,7 @@ pub struct StatusUpdate {
 #[derive(Debug)]
 pub enum DownloadCommand {
     ProcessInput { input: String, config: AppConfig },
+    Retry { items: Vec<QueueItem>, config: AppConfig },
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +100,36 @@ pub fn spawn_worker(
                     tokio::spawn(async move {
                         process_input(input, config, status_tx, semaphore, id_counter, ctx).await;
                     });
+                }
+                DownloadCommand::Retry { items, config } => {
+                    for item in items {
+                        let status_tx = status_tx.clone();
+                        let semaphore = semaphore.clone();
+                        let ctx = ctx.clone();
+                        let config = config.clone();
+                        let item_id = item.id;
+                        
+                        // Notify UI that it's queued again
+                        let _ = status_tx.send(StatusUpdate {
+                            item_id,
+                            status: DownloadStatus::Queued,
+                            meta: None,
+                        });
+                        ctx.request_repaint();
+
+                        if let Some(payload) = item.payload {
+                            tokio::spawn(async move {
+                                match payload {
+                                    ItemPayload::Spotify(track) => {
+                                        download_spotify_track(item_id, track, config, status_tx, semaphore, ctx).await;
+                                    }
+                                    ItemPayload::YouTube(url) => {
+                                        download_youtube_direct(item_id, &url, config, status_tx, semaphore, ctx).await;
+                                    }
+                                }
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -140,6 +179,7 @@ async fn process_input(
                     title: track.title.clone(),
                     artist: track.artist.clone(),
                     album: track.album.clone(),
+                    payload: Some(ItemPayload::Spotify(track.clone())),
                 }),
             });
             ctx.request_repaint();
@@ -165,6 +205,7 @@ async fn process_input(
                 title: "YouTube video".into(),
                 artist: String::new(),
                 album: String::new(),
+                payload: Some(ItemPayload::YouTube(input.clone())),
             }),
         });
         ctx.request_repaint();
@@ -289,6 +330,7 @@ async fn download_youtube_direct(
             title: yt_result.video_title.clone(),
             artist: String::new(),
             album: String::new(),
+            payload: None,
         }),
     });
     ctx.request_repaint();
@@ -335,9 +377,10 @@ fn emit_error(
         item_id: id,
         status: DownloadStatus::Error(msg.to_string()),
         meta: Some(ItemMeta {
-            title: "Erreur".into(),
-            artist: String::new(),
-            album: String::new(),
+            title: "".to_string(),
+            artist: "".to_string(),
+            album: "".to_string(),
+            payload: None,
         }),
     });
     ctx.request_repaint();
@@ -375,6 +418,7 @@ impl QueueItem {
             artist,
             album,
             status: DownloadStatus::Queued,
+            payload: None,
         }
     }
 

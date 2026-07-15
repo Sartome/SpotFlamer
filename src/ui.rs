@@ -30,6 +30,7 @@ pub fn draw_ui(
     on_open_folder: &mut dyn FnMut(),
     on_browse_folder: &mut dyn FnMut(),
     on_clear_done: &mut dyn FnMut(),
+    on_retry_failures: &mut dyn FnMut(),
 ) {
     apply_theme(ctx);
 
@@ -55,7 +56,7 @@ pub fn draw_ui(
             }
 
             // Queue header
-            draw_queue_header(ui, queue, on_open_folder, on_clear_done);
+            draw_queue_header(ui, queue, on_open_folder, on_clear_done, on_retry_failures);
 
             ui.add_space(6.0);
 
@@ -282,6 +283,7 @@ fn draw_queue_header(
     queue: &[QueueItem],
     on_open_folder: &mut dyn FnMut(),
     on_clear_done: &mut dyn FnMut(),
+    on_retry_failures: &mut dyn FnMut(),
 ) {
     egui::Frame::new()
         .inner_margin(egui::Margin::symmetric(20, 0))
@@ -311,6 +313,24 @@ fn draw_queue_header(
 
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if !queue.is_empty() {
+                        let error_count = queue.iter().filter(|q| matches!(q.status, DownloadStatus::Error(_))).count();
+                        if error_count > 0 {
+                            if ui
+                                .add(
+                                    egui::Button::new(
+                                        RichText::new(format!("🔄 Réessayer échecs ({error_count})"))
+                                            .size(12.0)
+                                            .color(Color32::from_rgb(255, 100, 100)),
+                                    )
+                                    .fill(Color32::TRANSPARENT)
+                                    .stroke(Stroke::NONE),
+                                )
+                                .clicked()
+                            {
+                                on_retry_failures();
+                            }
+                        }
+
                         if ui
                             .add(
                                 egui::Button::new(

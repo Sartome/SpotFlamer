@@ -67,13 +67,14 @@ impl SpotFlamerApp {
                     existing.status = update.status;
                 } else {
                     // New item
-                    let mut item = QueueItem::new(
-                        update.item_id,
-                        meta.title.clone(),
-                        meta.artist.clone(),
-                        meta.album.clone(),
-                    );
-                    item.status = update.status;
+                    let item = QueueItem {
+                        id: update.item_id,
+                        title: meta.title.clone(),
+                        artist: meta.artist.clone(),
+                        album: meta.album.clone(),
+                        status: update.status.clone(),
+                        payload: meta.payload.clone(),
+                    };
                     self.queue.push(item);
                 }
             } else if let Some(item) = self.queue.iter_mut().find(|q| q.id == update.item_id) {
@@ -91,6 +92,7 @@ impl eframe::App for SpotFlamerApp {
         let mut should_open_folder = false;
         let mut should_browse = false;
         let mut should_clear_done = false;
+        let mut should_retry_failures = false;
 
         ui::draw_ui(
             ctx,
@@ -102,6 +104,7 @@ impl eframe::App for SpotFlamerApp {
             &mut || should_open_folder = true,
             &mut || should_browse = true,
             &mut || should_clear_done = true,
+            &mut || should_retry_failures = true,
         );
 
         // Handle deferred actions
@@ -133,6 +136,21 @@ impl eframe::App for SpotFlamerApp {
         if should_clear_done {
             self.queue
                 .retain(|q| !matches!(q.status, DownloadStatus::Done | DownloadStatus::Error(_)));
+        }
+
+        if should_retry_failures {
+            let failures: Vec<QueueItem> = self.queue
+                .iter()
+                .filter(|q| matches!(q.status, DownloadStatus::Error(_)))
+                .cloned()
+                .collect();
+            
+            if !failures.is_empty() {
+                let _ = self.cmd_tx.send(DownloadCommand::Retry {
+                    items: failures,
+                    config: self.config.clone(),
+                });
+            }
         }
 
         // Auto-save config when settings panel closes
