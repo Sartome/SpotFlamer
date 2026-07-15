@@ -232,7 +232,7 @@ async fn download_spotify_track(
     send(DownloadStatus::Converting);
     let mp3_filename = build_filename(&track, config.add_track_number);
     let mp3_path = out_dir.join(&mp3_filename);
-    if let Err(e) = ffmpeg_utils::convert_to_mp3(&yt_result.file_path, &mp3_path).await {
+    if let Err(e) = ffmpeg_utils::convert_to_mp3(&yt_result.file_path, &mp3_path, config.force_quality, &config.audio_quality).await {
         error!("Convert failed for {}: {e}", track.title);
         send(DownloadStatus::Error(e));
         return;
@@ -295,7 +295,7 @@ async fn download_youtube_direct(
 
     let safe_title = sanitize_filename(&yt_result.video_title);
     let mp3_path = config.output_dir.join(format!("{safe_title}.mp3"));
-    if let Err(e) = ffmpeg_utils::convert_to_mp3(&yt_result.file_path, &mp3_path).await {
+    if let Err(e) = ffmpeg_utils::convert_to_mp3(&yt_result.file_path, &mp3_path, config.force_quality, &config.audio_quality).await {
         send(DownloadStatus::Error(e));
         return;
     }

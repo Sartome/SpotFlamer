@@ -66,22 +66,35 @@ pub async fn check_ffmpeg() -> Result<String, String> {
     Ok(version_line.to_string())
 }
 
-/// Converts an audio file to MP3 320 kbps.
-pub async fn convert_to_mp3(input: &Path, output: &Path) -> Result<(), String> {
+/// Converts an audio file to MP3.
+pub async fn convert_to_mp3(input: &Path, output: &Path, force_quality: bool, audio_quality: &str) -> Result<(), String> {
     let exe = get_ffmpeg_path();
     debug!("ffmpeg: {} → {}", input.display(), output.display());
 
+    let mut args = vec![
+        "-y".to_string(),
+        "-i".to_string(),
+        input.to_string_lossy().to_string(),
+        "-vn".to_string(),
+        "-codec:a".to_string(),
+        "libmp3lame".to_string(),
+    ];
+
+    if force_quality {
+        args.push("-b:a".to_string());
+        args.push(format!("{}k", audio_quality));
+    } else {
+        // -q:a 0 means variable bitrate, preserving highest source quality natively
+        args.push("-q:a".to_string());
+        args.push("0".to_string());
+    }
+
+    args.push("-map_metadata".to_string());
+    args.push("-1".to_string());
+    args.push(output.to_string_lossy().to_string());
+
     let status = hidden_command(&exe)
-        .args([
-            "-y",
-            "-i",
-            &input.to_string_lossy(),
-            "-vn",
-            "-codec:a", "libmp3lame",
-            "-b:a", "320k",
-            "-map_metadata", "-1",
-            &output.to_string_lossy().to_string(),
-        ])
+        .args(&args)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
         .status()

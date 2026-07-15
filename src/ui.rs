@@ -238,6 +238,38 @@ fn draw_settings(ui: &mut egui::Ui, config: &mut AppConfig, on_browse_folder: &m
                 ui.add(toggle_switch(&mut config.create_subfolder));
             });
 
+            ui.add_space(8.0);
+
+            // Audio quality settings
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new("Qualité audio (MP3) :")
+                        .size(13.0)
+                        .color(TEXT_SECONDARY),
+                );
+                ui.add_space(8.0);
+
+                egui::ComboBox::from_id_salt("quality_combo")
+                    .selected_text(format!("{} kbps", config.audio_quality))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut config.audio_quality, "320".to_string(), "320 kbps (Maximum)");
+                        ui.selectable_value(&mut config.audio_quality, "256".to_string(), "256 kbps (Excellente)");
+                        ui.selectable_value(&mut config.audio_quality, "192".to_string(), "192 kbps (Standard)");
+                        ui.selectable_value(&mut config.audio_quality, "128".to_string(), "128 kbps (Éco)");
+                    });
+
+                ui.add_space(16.0);
+                
+                ui.label(
+                    RichText::new("Forcer la qualité :")
+                        .size(13.0)
+                        .color(TEXT_SECONDARY),
+                ).on_hover_text("Si activé : Force l'encodage au bitrate choisi (augmente la taille si la source est inférieure).\nSi désactivé : Garde la qualité maximale d'origine de la source (recommandé).");
+                ui.add_space(8.0);
+                ui.add(toggle_switch(&mut config.force_quality))
+                    .on_hover_text("Désactiver pour optimiser la taille tout en gardant la qualité d'origine.");
+            });
+
         });
 }
 

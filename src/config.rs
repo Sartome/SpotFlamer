@@ -10,9 +10,15 @@ pub struct AppConfig {
     pub add_track_number: bool,
     #[serde(default = "default_true")]
     pub create_subfolder: bool,
+    #[serde(default = "default_false")]
+    pub force_quality: bool,
+    #[serde(default = "default_quality")]
+    pub audio_quality: String,
 }
 
 fn default_true() -> bool { true }
+fn default_false() -> bool { false }
+fn default_quality() -> String { "320".to_string() }
 
 impl Default for AppConfig {
     fn default() -> Self {
@@ -25,6 +31,8 @@ impl Default for AppConfig {
             output_dir,
             add_track_number: true,
             create_subfolder: true,
+            force_quality: false,
+            audio_quality: "320".to_string(),
         }
     }
 }
