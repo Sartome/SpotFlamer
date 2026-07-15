@@ -69,14 +69,25 @@ pub async fn fetch_track(id: &str) -> Result<TrackInfo, String> {
 
 pub async fn fetch_album_tracks(id: &str) -> Result<Vec<TrackInfo>, String> {
     let client = build_client()?;
-    let html = fetch_page(&client, &format!("https://open.spotify.com/album/{id}")).await?;
+    let html = fetch_page(&client, &format!("https://open.spotify.com/embed/album/{id}")).await?;
 
-    // Extract album title from og:title
-    let album_name = extract_meta(&html, "og:title").unwrap_or_default();
-    let cover_url = extract_meta(&html, "og:image");
+    let re = Regex::new(r#"<script id="__NEXT_DATA__" type="application/json">(.*?)</script>"#).unwrap();
+    let json_str = re.captures(&html).map(|c| html_decode(&c[1])).ok_or_else(|| "Impossible de trouver les données de l'album".to_string())?;
+    let v: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| format!("Parse JSON erreur: {e}"))?;
+    let entity = v.pointer("/props/pageProps/state/data/entity").ok_or_else(|| "Données introuvables".to_string())?;
 
-    // Extract track IDs from the page
-    let track_ids = extract_track_ids(&html);
+    let album_name = entity["title"].as_str().or(entity["name"].as_str()).unwrap_or("").to_string();
+    let cover_url = entity["coverArt"]["sources"][0]["url"].as_str().map(|s| s.to_string());
+
+    let track_list = entity["trackList"].as_array();
+    
+    // Fallback: extract URIs directly if trackList is not straightforward
+    let track_ids = if let Some(list) = track_list {
+        list.iter().filter_map(|t| t["uri"].as_str().and_then(|u| u.split(':').last()).map(|s| s.to_string())).collect::<Vec<_>>()
+    } else {
+        extract_track_ids(&html)
+    };
+
     if track_ids.is_empty() {
         return Err("Aucune piste trouvée dans cet album".into());
     }
@@ -109,10 +120,23 @@ pub async fn fetch_album_tracks(id: &str) -> Result<Vec<TrackInfo>, String> {
 
 pub async fn fetch_playlist_tracks(id: &str) -> Result<Vec<TrackInfo>, String> {
     let client = build_client()?;
-    let html = fetch_page(&client, &format!("https://open.spotify.com/playlist/{id}")).await?;
+    let html = fetch_page(&client, &format!("https://open.spotify.com/embed/playlist/{id}")).await?;
 
-    let cover_url = extract_meta(&html, "og:image");
-    let track_ids = extract_track_ids(&html);
+    let re = Regex::new(r#"<script id="__NEXT_DATA__" type="application/json">(.*?)</script>"#).unwrap();
+    let json_str = re.captures(&html).map(|c| html_decode(&c[1])).ok_or_else(|| "Impossible de trouver les données de la playlist".to_string())?;
+    let v: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| format!("Parse JSON erreur: {e}"))?;
+    let entity = v.pointer("/props/pageProps/state/data/entity").ok_or_else(|| "Données introuvables".to_string())?;
+
+    let cover_url = entity["coverArt"]["sources"][0]["url"].as_str().map(|s| s.to_string());
+
+    let track_list = entity["trackList"].as_array();
+    
+    let track_ids = if let Some(list) = track_list {
+        list.iter().filter_map(|t| t["uri"].as_str().and_then(|u| u.split(':').last()).map(|s| s.to_string())).collect::<Vec<_>>()
+    } else {
+        extract_track_ids(&html)
+    };
+
     if track_ids.is_empty() {
         return Err("Aucune piste trouvée dans cette playlist".into());
     }
@@ -169,31 +193,23 @@ async fn fetch_page(client: &Client, url: &str) -> Result<String, String> {
 }
 
 async fn scrape_track(client: &Client, id: &str) -> Result<TrackInfo, String> {
-    let url = format!("https://open.spotify.com/track/{id}");
+    let url = format!("https://open.spotify.com/embed/track/{id}");
     let html = fetch_page(client, &url).await?;
 
-    // 1. Parse <title> tag: "Song Name - song and lyrics by Artist | Spotify"
-    //    or "Song Name - song by Artist | Spotify"
-    //    or just "Song Name | Spotify"
-    let (title, artist) = parse_title_tag(&html);
-    debug!("Scraped track: \"{title}\" by \"{artist}\"");
+    // Extract JSON state
+    let re = Regex::new(r#"<script id="__NEXT_DATA__" type="application/json">(.*?)</script>"#).unwrap();
+    let json_str = re.captures(&html).map(|c| html_decode(&c[1])).ok_or_else(|| "Impossible de trouver les données Spotify".to_string())?;
 
-    // 2. Cover art from og:image
-    let cover_url = extract_meta(&html, "og:image");
+    let v: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| format!("Parse JSON erreur: {e}"))?;
 
-    // 3. Duration from music:duration (seconds) — may not always be present
-    let duration_ms = extract_meta(&html, "music:duration")
-        .and_then(|s| s.parse::<f64>().ok())
-        .map(|s| (s * 1000.0) as u64)
-        .unwrap_or(0);
+    let entity = v.pointer("/props/pageProps/state/data/entity").ok_or_else(|| "Données piste introuvables".to_string())?;
 
-    // 4. Track number from music:album:track
-    let track_number = extract_meta(&html, "music:album:track")
-        .and_then(|s| s.parse::<u32>().ok())
-        .unwrap_or(0);
-
-    // 5. Album — try og:description which often is "Artist · Song · Album · Year"
-    let album = extract_album_from_description(&html).unwrap_or_default();
+    let title = entity["title"].as_str().or(entity["name"].as_str()).unwrap_or("").to_string();
+    
+    let artist = entity["artists"][0]["name"].as_str().unwrap_or("").to_string();
+    let duration_ms = entity["duration"].as_u64().unwrap_or(0);
+    
+    let cover_url = entity["coverArt"]["sources"][0]["url"].as_str().map(|s| s.to_string());
 
     if title.is_empty() {
         return Err(format!("Impossible d'extraire le titre de la piste {id}"));
@@ -202,8 +218,8 @@ async fn scrape_track(client: &Client, id: &str) -> Result<TrackInfo, String> {
     Ok(TrackInfo {
         title,
         artist,
-        album,
-        track_number,
+        album: String::new(), // Embed ne fournit pas l'album au premier niveau pour la track
+        track_number: 0,
         total_tracks: 0,
         duration_ms,
         cover_url,
