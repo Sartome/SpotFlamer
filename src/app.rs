@@ -24,6 +24,8 @@ impl SpotFlamerApp {
         let (cmd_tx, status_rx) =
             crate::downloader::spawn_worker(cc.egui_ctx.clone());
 
+        // Load Inter font (or fallback)
+
         let mut fonts = egui::FontDefinitions::default();
         fonts.font_data.insert(
             "Inter".to_owned(),
