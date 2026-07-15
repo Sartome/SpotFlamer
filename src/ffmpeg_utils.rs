@@ -1,24 +1,39 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tokio::process::Command;
 use tracing::debug;
 
 /// Returns the path to the local ffmpeg executable (next to the running binary).
-fn ffmpeg_path() -> PathBuf {
-    let dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-        .unwrap_or_else(|| PathBuf::from("."));
-
-    if cfg!(windows) {
-        dir.join("ffmpeg.exe")
+pub fn get_ffmpeg_path() -> std::path::PathBuf {
+    let exe_name = if cfg!(target_os = "windows") {
+        "ffmpeg.exe"
     } else {
-        dir.join("ffmpeg")
+        "ffmpeg"
+    };
+
+    // 1. Try executable directory (for released app)
+    if let Ok(mut path) = std::env::current_exe() {
+        path.pop();
+        path.push(exe_name);
+        if path.exists() {
+            return path;
+        }
     }
+
+    // 2. Try current working directory (for cargo run)
+    if let Ok(mut path) = std::env::current_dir() {
+        path.push(exe_name);
+        if path.exists() {
+            return path;
+        }
+    }
+
+    // Fallback: expect it in PATH
+    std::path::PathBuf::from(exe_name)
 }
 
 /// Checks that `ffmpeg` is available locally and returns its version string.
 pub async fn check_ffmpeg() -> Result<String, String> {
-    let exe = ffmpeg_path();
+    let exe = get_ffmpeg_path();
     if !exe.exists() {
         return Err(format!(
             "ffmpeg introuvable à {} — placez ffmpeg(.exe) à côté de l'exécutable SpotFlamer",
@@ -43,7 +58,7 @@ pub async fn check_ffmpeg() -> Result<String, String> {
 
 /// Converts an audio file to MP3 320 kbps.
 pub async fn convert_to_mp3(input: &Path, output: &Path) -> Result<(), String> {
-    let exe = ffmpeg_path();
+    let exe = get_ffmpeg_path();
     debug!("ffmpeg: {} → {}", input.display(), output.display());
 
     let status = Command::new(&exe)

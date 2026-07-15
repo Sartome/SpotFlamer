@@ -10,17 +10,32 @@ use tracing::{debug, warn};
 // ---------------------------------------------------------------------------
 
 /// Returns the path to the local yt-dlp executable (next to the running binary).
-pub fn ytdlp_path() -> PathBuf {
-    let dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-        .unwrap_or_else(|| PathBuf::from("."));
-
-    if cfg!(windows) {
-        dir.join("yt-dlp.exe")
+pub fn get_ytdlp_path() -> std::path::PathBuf {
+    let exe_name = if cfg!(target_os = "windows") {
+        "yt-dlp.exe"
     } else {
-        dir.join("yt-dlp")
+        "yt-dlp"
+    };
+
+    // 1. Try executable directory (for released app)
+    if let Ok(mut path) = std::env::current_exe() {
+        path.pop();
+        path.push(exe_name);
+        if path.exists() {
+            return path;
+        }
     }
+
+    // 2. Try current working directory (for cargo run)
+    if let Ok(mut path) = std::env::current_dir() {
+        path.push(exe_name);
+        if path.exists() {
+            return path;
+        }
+    }
+
+    // Fallback: expect it in PATH
+    std::path::PathBuf::from(exe_name)
 }
 
 // ---------------------------------------------------------------------------
@@ -74,7 +89,7 @@ pub async fn search_and_download(
     expected_duration_secs: f64,
     output_dir: &Path,
 ) -> Result<YtDownloadResult, String> {
-    let exe = ytdlp_path();
+    let exe = get_ytdlp_path();
 
     let queries = [
         format!("{artist} - {title} Official Audio"),
@@ -160,7 +175,7 @@ pub async fn download_direct(
     video_url: &str,
     output_dir: &Path,
 ) -> Result<YtDownloadResult, String> {
-    let exe = ytdlp_path();
+    let exe = get_ytdlp_path();
 
     let output = Command::new(&exe)
         .args(["--dump-json", "--no-warnings", video_url])

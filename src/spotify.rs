@@ -2,7 +2,7 @@
 
 use regex::Regex;
 use reqwest::Client;
-use tracing::{debug, warn};
+use tracing::debug;
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -81,41 +81,34 @@ pub async fn fetch_album_tracks(id: &str) -> Result<Vec<TrackInfo>, String> {
 
     let track_list = entity["trackList"].as_array();
     
-    // Fallback: extract URIs directly if trackList is not straightforward
-    let track_ids = if let Some(list) = track_list {
-        list.iter().filter_map(|t| t["uri"].as_str().and_then(|u| u.split(':').last()).map(|s| s.to_string())).collect::<Vec<_>>()
-    } else {
-        extract_track_ids(&html)
-    };
-
-    if track_ids.is_empty() {
-        return Err("Aucune piste trouvée dans cet album".into());
-    }
-
-    let total = track_ids.len() as u32;
-    let mut tracks = Vec::with_capacity(track_ids.len());
-
-    for (i, tid) in track_ids.iter().enumerate() {
-        match scrape_track(&client, tid).await {
-            Ok(mut t) => {
-                t.album = album_name.clone();
-                t.track_number = (i + 1) as u32;
-                t.total_tracks = total;
-                if t.cover_url.is_none() {
-                    t.cover_url = cover_url.clone();
+    if let Some(list) = track_list {
+        let total = list.len() as u32;
+        let mut tracks = Vec::with_capacity(list.len());
+        for (i, t) in list.iter().enumerate() {
+            if t["uri"].as_str().unwrap_or("").starts_with("spotify:track:") {
+                let title = t["title"].as_str().unwrap_or("").to_string();
+                let artist = t["subtitle"].as_str().unwrap_or("").to_string();
+                let duration_ms = t["duration"].as_u64().unwrap_or(0);
+                
+                if !title.is_empty() {
+                    tracks.push(TrackInfo {
+                        title,
+                        artist,
+                        album: album_name.clone(),
+                        track_number: (i + 1) as u32,
+                        total_tracks: total,
+                        duration_ms,
+                        cover_url: cover_url.clone(),
+                    });
                 }
-                tracks.push(t);
             }
-            Err(e) => warn!("Échec scrape piste {tid}: {e}"),
         }
-        // Small delay to avoid rate-limiting
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        if !tracks.is_empty() {
+            return Ok(tracks);
+        }
     }
 
-    if tracks.is_empty() {
-        return Err("Impossible de récupérer les pistes de l'album".into());
-    }
-    Ok(tracks)
+    Err("Aucune piste valide trouvée dans cet album".into())
 }
 
 pub async fn fetch_playlist_tracks(id: &str) -> Result<Vec<TrackInfo>, String> {
@@ -131,38 +124,34 @@ pub async fn fetch_playlist_tracks(id: &str) -> Result<Vec<TrackInfo>, String> {
 
     let track_list = entity["trackList"].as_array();
     
-    let track_ids = if let Some(list) = track_list {
-        list.iter().filter_map(|t| t["uri"].as_str().and_then(|u| u.split(':').last()).map(|s| s.to_string())).collect::<Vec<_>>()
-    } else {
-        extract_track_ids(&html)
-    };
-
-    if track_ids.is_empty() {
-        return Err("Aucune piste trouvée dans cette playlist".into());
-    }
-
-    let total = track_ids.len() as u32;
-    let mut tracks = Vec::with_capacity(track_ids.len());
-
-    for (i, tid) in track_ids.iter().enumerate() {
-        match scrape_track(&client, tid).await {
-            Ok(mut t) => {
-                t.track_number = (i + 1) as u32;
-                t.total_tracks = total;
-                if t.cover_url.is_none() {
-                    t.cover_url = cover_url.clone();
+    if let Some(list) = track_list {
+        let total = list.len() as u32;
+        let mut tracks = Vec::with_capacity(list.len());
+        for (i, t) in list.iter().enumerate() {
+            if t["uri"].as_str().unwrap_or("").starts_with("spotify:track:") {
+                let title = t["title"].as_str().unwrap_or("").to_string();
+                let artist = t["subtitle"].as_str().unwrap_or("").to_string();
+                let duration_ms = t["duration"].as_u64().unwrap_or(0);
+                
+                if !title.is_empty() {
+                    tracks.push(TrackInfo {
+                        title,
+                        artist,
+                        album: String::new(),
+                        track_number: (i + 1) as u32,
+                        total_tracks: total,
+                        duration_ms,
+                        cover_url: cover_url.clone(),
+                    });
                 }
-                tracks.push(t);
             }
-            Err(e) => warn!("Échec scrape piste {tid}: {e}"),
         }
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        if !tracks.is_empty() {
+            return Ok(tracks);
+        }
     }
 
-    if tracks.is_empty() {
-        return Err("Impossible de récupérer les pistes de la playlist".into());
-    }
-    Ok(tracks)
+    Err("Aucune piste valide trouvée dans cette playlist".into())
 }
 
 // ---------------------------------------------------------------------------
