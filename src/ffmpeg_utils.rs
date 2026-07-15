@@ -2,6 +2,16 @@ use std::path::Path;
 use tokio::process::Command;
 use tracing::debug;
 
+fn hidden_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
+    let mut std_cmd = std::process::Command::new(program);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        std_cmd.creation_flags(0x08000000);
+    }
+    Command::from(std_cmd)
+}
+
 /// Returns the path to the local ffmpeg executable (next to the running binary).
 pub fn get_ffmpeg_path() -> std::path::PathBuf {
     let exe_name = if cfg!(target_os = "windows") {
@@ -41,7 +51,7 @@ pub async fn check_ffmpeg() -> Result<String, String> {
         ));
     }
 
-    let output = Command::new(&exe)
+    let output = hidden_command(&exe)
         .arg("-version")
         .output()
         .await
@@ -61,7 +71,7 @@ pub async fn convert_to_mp3(input: &Path, output: &Path) -> Result<(), String> {
     let exe = get_ffmpeg_path();
     debug!("ffmpeg: {} → {}", input.display(), output.display());
 
-    let status = Command::new(&exe)
+    let status = hidden_command(&exe)
         .args([
             "-y",
             "-i",

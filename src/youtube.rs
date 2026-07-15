@@ -5,6 +5,16 @@ use std::path::{Path, PathBuf};
 use tokio::process::Command;
 use tracing::{debug, warn};
 
+fn hidden_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
+    let mut std_cmd = std::process::Command::new(program);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        std_cmd.creation_flags(0x08000000);
+    }
+    Command::from(std_cmd)
+}
+
 // ---------------------------------------------------------------------------
 // Local executable path
 // ---------------------------------------------------------------------------
@@ -103,7 +113,7 @@ pub async fn search_and_download(
         let search_arg = format!("ytsearch5:{query}");
         debug!("yt-dlp search: {search_arg}");
 
-        let output = Command::new(&exe)
+        let output = hidden_command(&exe)
             .args(["--dump-json", "--flat-playlist", "--no-warnings", &search_arg])
             .output()
             .await
@@ -177,7 +187,7 @@ pub async fn download_direct(
 ) -> Result<YtDownloadResult, String> {
     let exe = get_ytdlp_path();
 
-    let output = Command::new(&exe)
+    let output = hidden_command(&exe)
         .args(["--dump-json", "--no-warnings", video_url])
         .output()
         .await
@@ -247,7 +257,7 @@ fn score_entry(entry: &YtdlpEntry, artist: &str, title: &str, expected_dur: f64)
 async fn download_audio(exe: &Path, video_url: &str, output_dir: &Path, video_id: &str) -> Result<(), String> {
     let output_template = output_dir.join(format!("{video_id}.%(ext)s"));
 
-    let status = Command::new(exe)
+    let status = hidden_command(exe)
         .args([
             "-f", "bestaudio",
             "--no-playlist",
