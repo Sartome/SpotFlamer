@@ -1,6 +1,6 @@
 [package]
 name = "spotflamer"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2021"
 description = "Desktop music downloader — Spotify metadata + YouTube audio → MP3 320kbps"
 
@@ -9,7 +9,7 @@ description = "Desktop music downloader — Spotify metadata + YouTube audio →
 eframe = "0.31"
 egui = "0.31"
 egui_extras = { version = "0.31", features = ["image"] }
-image = { version = "0.25", features = ["jpeg", "png"] }
+image = "0.25"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
@@ -43,3 +43,6 @@ sanitize-filename = "0.6.0"
 self_update = { version = "0.44.0", features = ["signatures"] }
 zipsign-api = "0.2.1"
 base64ct = "1.8.3"
+
+[build-dependencies]
+winres = "0.1"
