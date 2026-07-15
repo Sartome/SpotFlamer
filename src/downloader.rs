@@ -411,17 +411,6 @@ fn sanitize_filename(name: &str) -> String {
 }
 
 impl QueueItem {
-    pub fn new(id: u64, title: String, artist: String, album: String) -> Self {
-        Self {
-            id,
-            title,
-            artist,
-            album,
-            status: DownloadStatus::Queued,
-            payload: None,
-        }
-    }
-
     pub fn status_color(&self) -> egui::Color32 {
         match &self.status {
             DownloadStatus::Queued => egui::Color32::from_rgb(150, 150, 150),

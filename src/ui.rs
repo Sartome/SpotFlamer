@@ -79,9 +79,9 @@ fn apply_theme(ctx: &egui::Context) {
     visuals.widgets.hovered.bg_fill = Color32::from_rgb(45, 45, 60);
     visuals.widgets.active.bg_fill = ACCENT;
     visuals.selection.bg_fill = ACCENT.linear_multiply(0.3);
-    visuals.selection.stroke = Stroke::new(1.0, ACCENT);
-    visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, BORDER);
-    visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, BORDER);
+    visuals.selection.stroke = Stroke::new(1.0_f32, ACCENT);
+    visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0_f32, BORDER);
+    visuals.widgets.inactive.bg_stroke = Stroke::new(1.0_f32, BORDER);
     ctx.set_visuals(visuals);
 }
 
@@ -182,7 +182,7 @@ fn draw_settings(ui: &mut egui::Ui, config: &mut AppConfig, on_browse_folder: &m
         .corner_radius(CornerRadius::same(10))
         .inner_margin(egui::Margin::same(16))
         .outer_margin(egui::Margin::symmetric(20, 0))
-        .stroke(Stroke::new(1.0, BORDER))
+        .stroke(Stroke::new(1.0_f32, BORDER))
         .show(ui, |ui| {
             ui.label(RichText::new("Paramètres").size(15.0).color(ACCENT).strong());
             ui.add_space(10.0);
@@ -409,7 +409,7 @@ fn draw_queue_item(ui: &mut egui::Ui, item: &QueueItem) {
         .fill(BG_CARD)
         .corner_radius(CornerRadius::same(8))
         .inner_margin(egui::Margin::same(12))
-        .stroke(Stroke::new(1.0, BORDER))
+        .stroke(Stroke::new(1.0_f32, BORDER))
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 // Status indicator dot
