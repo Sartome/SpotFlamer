@@ -39,7 +39,6 @@ jobs:
       - name: Sign Executable
         env:
           MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
-          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
         run: |
           Set-Content -Path minisign.key -Value $env:MINISIGN_SECRET_KEY
           .\minisign.exe -S -s minisign.key -m target\release\spotflamer.exe
