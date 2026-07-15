@@ -1,0 +1,40 @@
+[package]
+name = "spotflamer"
+version = "0.1.0"
+edition = "2021"
+description = "Desktop music downloader — Spotify metadata + YouTube audio → MP3 320kbps"
+
+[dependencies]
+# GUI
+eframe = "0.31"
+egui = "0.31"
+egui_extras = { version = "0.31", features = ["image"] }
+image = { version = "0.25", features = ["jpeg", "png"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP & serialization
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Audio metadata
+id3 = "1"
+
+# URL / text parsing
+regex = "1"
+url = "2"
+
+# Native file dialog
+rfd = "0.15"
+
+# User directories
+dirs = "6"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Open file manager
+open = "5"

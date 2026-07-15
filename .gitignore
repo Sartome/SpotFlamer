@@ -1,0 +1,10 @@
+/target/
+**/*.rs.bk
+Cargo.lock
+# Ignore built executables or dependencies in the root
+ffmpeg.exe
+ffmpeg
+yt-dlp.exe
+yt-dlp
+*.mp3
+.spotflamer/
