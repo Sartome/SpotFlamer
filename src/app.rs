@@ -24,6 +24,20 @@ impl SpotFlamerApp {
         let (cmd_tx, status_rx) =
             crate::downloader::spawn_worker(cc.egui_ctx.clone());
 
+        let mut fonts = egui::FontDefinitions::default();
+        fonts.font_data.insert(
+            "Inter".to_owned(),
+            std::sync::Arc::new(egui::FontData::from_static(include_bytes!(
+                "../assets/Inter-Regular.ttf"
+            ))),
+        );
+        fonts
+            .families
+            .entry(egui::FontFamily::Proportional)
+            .or_default()
+            .insert(0, "Inter".to_owned());
+        cc.egui_ctx.set_fonts(fonts);
+
         Self {
             config,
             input_text: String::new(),

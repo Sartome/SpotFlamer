@@ -121,6 +121,7 @@ pub async fn fetch_playlist_tracks(id: &str) -> Result<Vec<TrackInfo>, String> {
     let entity = v.pointer("/props/pageProps/state/data/entity").ok_or_else(|| "Données introuvables".to_string())?;
 
     let cover_url = entity["coverArt"]["sources"][0]["url"].as_str().map(|s| s.to_string());
+    let playlist_name = entity["name"].as_str().unwrap_or("Playlist").to_string();
 
     let track_list = entity["trackList"].as_array();
     
@@ -137,7 +138,7 @@ pub async fn fetch_playlist_tracks(id: &str) -> Result<Vec<TrackInfo>, String> {
                     tracks.push(TrackInfo {
                         title,
                         artist,
-                        album: String::new(),
+                        album: playlist_name.clone(),
                         track_number: (i + 1) as u32,
                         total_tracks: total,
                         duration_ms,

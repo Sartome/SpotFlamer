@@ -38,3 +38,5 @@ tracing-subscriber = "0.3"
 
 # Open file manager
 open = "5"
+winapi = { version = "0.3.9", features = ["std", "winbase"] }
+sanitize-filename = "0.6.0"

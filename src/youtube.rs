@@ -257,7 +257,7 @@ fn score_entry(entry: &YtdlpEntry, artist: &str, title: &str, expected_dur: f64)
 async fn download_audio(exe: &Path, video_url: &str, output_dir: &Path, video_id: &str) -> Result<(), String> {
     let output_template = output_dir.join(format!("{video_id}.%(ext)s"));
 
-    let status = hidden_command(exe)
+    let output = hidden_command(exe)
         .args([
             "-f", "bestaudio",
             "--no-playlist",
@@ -265,12 +265,13 @@ async fn download_audio(exe: &Path, video_url: &str, output_dir: &Path, video_id
             "-o", &output_template.to_string_lossy(),
             video_url,
         ])
-        .status()
+        .output()
         .await
-        .map_err(|e| format!("yt-dlp download échoué: {e}"))?;
+        .map_err(|e| format!("yt-dlp exécution échouée: {e}"))?;
 
-    if !status.success() {
-        return Err("yt-dlp download a retourné une erreur".into());
+    if !output.status.success() {
+        let err_msg = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("yt-dlp erreur: {}", err_msg.trim()));
     }
     Ok(())
 }

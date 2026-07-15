@@ -205,7 +205,11 @@ async fn download_spotify_track(
         ctx.request_repaint();
     };
 
-    let _ = tokio::fs::create_dir_all(&config.output_dir).await;
+    let mut out_dir = config.output_dir.clone();
+    if config.create_subfolder && !track.album.is_empty() {
+        out_dir.push(sanitize_filename::sanitize(&track.album));
+    }
+    let _ = tokio::fs::create_dir_all(&out_dir).await;
 
     send(DownloadStatus::Searching);
     let expected_secs = track.duration_ms as f64 / 1000.0;
@@ -213,7 +217,7 @@ async fn download_spotify_track(
         &track.artist,
         &track.title,
         expected_secs,
-        &config.output_dir,
+        &out_dir,
     )
     .await
     {
@@ -227,7 +231,7 @@ async fn download_spotify_track(
 
     send(DownloadStatus::Converting);
     let mp3_filename = build_filename(&track, config.add_track_number);
-    let mp3_path = config.output_dir.join(&mp3_filename);
+    let mp3_path = out_dir.join(&mp3_filename);
     if let Err(e) = ffmpeg_utils::convert_to_mp3(&yt_result.file_path, &mp3_path).await {
         error!("Convert failed for {}: {e}", track.title);
         send(DownloadStatus::Error(e));

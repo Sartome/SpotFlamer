@@ -8,7 +8,11 @@ const CONFIG_FILE_NAME: &str = "config.json";
 pub struct AppConfig {
     pub output_dir: PathBuf,
     pub add_track_number: bool,
+    #[serde(default = "default_true")]
+    pub create_subfolder: bool,
 }
+
+fn default_true() -> bool { true }
 
 impl Default for AppConfig {
     fn default() -> Self {
@@ -20,6 +24,7 @@ impl Default for AppConfig {
         Self {
             output_dir,
             add_track_number: true,
+            create_subfolder: true,
         }
     }
 }

@@ -225,6 +225,19 @@ fn draw_settings(ui: &mut egui::Ui, config: &mut AppConfig, on_browse_folder: &m
                 ui.add(toggle_switch(&mut config.add_track_number));
             });
 
+            ui.add_space(8.0);
+
+            // Subfolder toggle
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new("Sous-dossier par album/playlist :")
+                        .size(13.0)
+                        .color(TEXT_SECONDARY),
+                );
+                ui.add_space(8.0);
+                ui.add(toggle_switch(&mut config.create_subfolder));
+            });
+
         });
 }
 
@@ -369,9 +382,16 @@ fn draw_queue_item(ui: &mut egui::Ui, item: &QueueItem) {
                             .strong(),
                     );
 
+                    let mut subtitle_parts = Vec::new();
                     if !item.artist.is_empty() {
+                        subtitle_parts.push(item.artist.clone());
+                    }
+                    if !item.album.is_empty() {
+                        subtitle_parts.push(item.album.clone());
+                    }
+                    if !subtitle_parts.is_empty() {
                         ui.label(
-                            RichText::new(&item.artist)
+                            RichText::new(&subtitle_parts.join(" • "))
                                 .size(12.0)
                                 .color(TEXT_SECONDARY),
                         );
