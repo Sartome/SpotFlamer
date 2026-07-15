@@ -7,12 +7,16 @@ mod metadata;
 mod spotify;
 mod ui;
 mod youtube;
+mod updater;
 
 fn main() {
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
+
+    // Start background update checker
+    updater::spawn_update_checker();
 
     // Build tokio runtime
     let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");

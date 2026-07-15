@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on tags starting with v (e.g. v1.0.0)
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release Windows App
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Cargo Dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Install Minisign
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/jedisct1/minisign/releases/download/0.11/minisign-0.11-win64.zip" -OutFile "minisign.zip"
+          Expand-Archive -Path minisign.zip -DestinationPath minisign_tmp -Force
+          Move-Item minisign_tmp\minisign-win64\minisign.exe .\minisign.exe
+          Remove-Item -Recurse -Force minisign.zip, minisign_tmp
+
+      - name: Sign Executable
+        env:
+          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
+        run: |
+          Set-Content -Path minisign.key -Value $env:MINISIGN_SECRET_KEY
+          .\minisign.exe -S -s minisign.key -m target\release\spotflamer.exe
+          Remove-Item minisign.key
+
+      - name: Prepare Release Artifacts
+        run: |
+          mkdir release_artifacts
+          Copy-Item target\release\spotflamer.exe release_artifacts\
+          Copy-Item target\release\spotflamer.exe.minisig release_artifacts\
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release_artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
