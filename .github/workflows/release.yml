@@ -33,7 +33,7 @@ jobs:
         run: |
           Invoke-WebRequest -Uri "https://github.com/jedisct1/minisign/releases/download/0.11/minisign-0.11-win64.zip" -OutFile "minisign.zip"
           Expand-Archive -Path minisign.zip -DestinationPath minisign_tmp -Force
-          Move-Item minisign_tmp\minisign-win64\minisign.exe .\minisign.exe
+          Move-Item minisign_tmp\minisign-win64\minisign.exe .\minisign.exe -Force
           Remove-Item -Recurse -Force minisign.zip, minisign_tmp
 
       - name: Sign Executable
